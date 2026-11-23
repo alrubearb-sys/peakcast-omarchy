@@ -1,0 +1,16 @@
+{
+  "tooltip": "Mountain weather",
+  "summit": "summit",
+  "base": "base",
+  "elevation": "elevation",
+  "temperature": "temp",
+  "wind": "wind",
+  "snowLine": "snow line",
+  "freezingLevel": "freezing level",
+  "updated": "Updated %1",
+  "loading": "Loading...",
+  "missing": "The peakcast engine is not installed.",
+  "install": "See github.com/alrubearb-sys/peakcast to install it.",
+  "noAreas": "No areas yet. Add one with: peakcast add <place>",
+  "credit": "Weather data by Open-Meteo (CC BY 4.0)"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.alrubearb-sys.peakcast",
+  "name": "Peakcast",
+  "version": "0.2.0",
+  "author": "alrubearb-sys",
+  "description": "Mountain weather for the places you go: summit and base, wind at the summit, snow line and freezing level",
+  "license": "MIT",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Peakcast",
+    "description": "Summit temperature in the bar, mountain forecast on click",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
