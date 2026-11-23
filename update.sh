@@ -24,22 +24,25 @@ aarch64 | arm64) arch=aarch64 ;;
   ;;
 esac
 
-# Where the engine already is, so that the new one takes its place.
+# Where the engine already is, so that the new one takes its place. A folder the
+# user cannot write belongs to a package, which its package manager updates.
 target=$(dirname "$(command -v peakcast)")
-sudo=""
-[[ -w $target ]] || sudo=sudo
-name="peakcast-$version-$arch-linux"
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+if [[ -w $target ]]; then
+  name="peakcast-$version-$arch-linux"
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
 
-echo "Downloading Peakcast $version..."
-curl -fsSL "https://github.com/$repo/releases/download/v$version/$name.tar.gz" | tar xz -C "$work"
-# Copied aside and renamed, so that a map still open keeps running the old one.
-for program in peakcast peakcast-map; do
-  $sudo install -m 755 "$work/$name/$program" "$target/.$program.new"
-  $sudo mv "$target/.$program.new" "$target/$program"
-done
-echo "Installed Peakcast $version in $target."
+  echo "Downloading Peakcast $version..."
+  curl -fsSL "https://github.com/$repo/releases/download/v$version/$name.tar.gz" | tar xz -C "$work"
+  # Copied aside and renamed, so that a map still open keeps running the old one.
+  for program in peakcast peakcast-map; do
+    install -m 755 "$work/$name/$program" "$target/.$program.new"
+    mv "$target/.$program.new" "$target/$program"
+  done
+  echo "Installed Peakcast $version in $target."
+else
+  echo "Peakcast was installed by a package in $target; update it with your package manager."
+fi
 
 if [[ -d $HOME/.config/omarchy/plugins/$plugin/.git ]]; then
   omarchy plugin update "$plugin" --yes
