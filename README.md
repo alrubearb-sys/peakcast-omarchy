@@ -29,6 +29,22 @@ the engine has to be installed first.
 
 Left click opens the card, middle click refreshes. Update with `omarchy plugin update io.github.alrubearb-sys.peakcast`.
 
+## Remove
+
+```
+omarchy plugin remove io.github.alrubearb-sys.peakcast
+rm ~/.local/bin/peakcast ~/.local/bin/peakcast-map
+```
+
+Your areas stay in `~/.config/peakcast` and the caches in `~/.cache/peakcast`; delete those folders
+too to remove everything.
+
+## Requirements
+
+- The [Peakcast](https://github.com/alrubearb-sys/peakcast) engine (`peakcast`), which the plugin runs
+  to read the forecast. The plugin itself makes no network requests; the engine asks Open-Meteo for
+  the forecast and Nominatim for place searches.
+
 ## License
 
 MIT. Weather data by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0).
