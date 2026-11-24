@@ -56,10 +56,10 @@ or run `omarchy bar move io.github.alrubearb-sys.peakcast --section center`.
 - `omarchy-shell io.github.alrubearb-sys.peakcast toggleTemperature` switches the temperature on
   or off.
 
-The panel for K2, and the map where its summit and base were picked:
+The panel for K2 with its temperature in the bar, and the map where its summit and base were picked:
 
 <p>
-  <img src="screenshots/panel-k2.png" alt="The panel for K2: -38 °C at the summit and 241 cm of snow" width="360">
+  <img src="screenshots/panel-k2.png" alt="The panel for K2 under the bar, which shows -40° next to the icon" width="360">
   <img src="screenshots/map-k2.png" alt="The map with the summit and the base of K2" width="560">
 </p>
 
