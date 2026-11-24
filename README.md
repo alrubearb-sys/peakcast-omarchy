@@ -58,6 +58,10 @@ The panel for K2, and the map where its summit and base were picked:
   <img src="screenshots/map-k2.png" alt="The map with the summit and the base of K2" width="560">
 </p>
 
+The map covers the whole world, so an area can be anywhere:
+
+<img src="screenshots/map-world.png" alt="The map zoomed out over Europe, Africa and Asia" width="720">
+
 ## Remove
 
 ```
