@@ -11,14 +11,8 @@ import qs.Ui
 // peakcast-map picks the points; this widget only draws and runs them.
 BarWidget {
   id: root
-  moduleName: "io.github.alrubearb-sys.peakcast"
-  implicitWidth: button.implicitWidth
-  implicitHeight: button.implicitHeight
-
-  // Width of the tick numbers on the left of the charts.
   readonly property int axis: Style.space(38)
 
-  // Saved areas as `peakcast areas --json` gives them, with their points.
   property var areas: []
   property int selected: 0
   // The area to show once the areas are read again, after saving or editing one.
@@ -31,18 +25,19 @@ BarWidget {
   // Like Omarchy's weather, a failed request is tried again a few times before
   // the error shows, as when the laptop wakes before the network is back.
   property int retries: 0
+  readonly property int maxRetries: 3
+  readonly property int retryDelay: 2500
+  readonly property int hourMilliseconds: 3600 * 1000
+  readonly property int versionCheckInterval: 6 * hourMilliseconds
   property string failure: ""
   property string problem: ""
   property bool missing: false
   property bool popupOpen: false
   property real updatedAt: 0
-  // A newer release, from `peakcast outdated`; empty when this one is the newest.
   property string newVersion: ""
   property int hovered: -1
   property var palette: ({})
 
-  // The area picker: what was typed, the saved areas that match it, and the
-  // places found for the last search.
   property bool picking: false
   property string typed: ""
   property var matches: []
@@ -169,7 +164,7 @@ BarWidget {
     if (code === 0) {
       retries = 0
       if (needsFetch()) fetch()
-    } else if (retries < 3) {
+    } else if (retries < maxRetries) {
       retries++
       retryTimer.restart()
     } else {
@@ -180,8 +175,7 @@ BarWidget {
 
   // The panel starts at the hour it was made for: past that hour it is asked again.
   function stale() {
-    var hour = 3600 * 1000
-    return Math.floor(updatedAt / hour) !== Math.floor(Date.now() / hour)
+    return Math.floor(updatedAt / hourMilliseconds) !== Math.floor(Date.now() / hourMilliseconds)
   }
 
   function show(index) {
@@ -203,6 +197,7 @@ BarWidget {
       areas = Array.isArray(read) ? read : []
     } catch (error) {
       areas = []
+      problem = "cannot read the answer of peakcast"
     }
     var index = 0
     if (!fromTop)
@@ -229,12 +224,6 @@ BarWidget {
     }
   }
 
-  function toneColor(tone, tint) {
-    if (tone === "snow") return snowColor
-    if (tone === "ice") return iceColor
-    return tint
-  }
-
   function openPicker() {
     cursor = -1
     filter("")
@@ -245,7 +234,6 @@ BarWidget {
     picking = false
   }
 
-  // Saved areas whose name contains what was typed, ignoring case.
   function filter(text) {
     typed = text
     var needle = text.trim().toLowerCase()
@@ -257,17 +245,6 @@ BarWidget {
     searched = ""
   }
 
-  // "peak · 2502 m · Schwende-Rüte, Switzerland": what it is tells apart places with
-  // the same name. The description starts with the name, which the row already shows.
-  function placeDetail(place) {
-    var description = String(place.description)
-    var comma = description.indexOf(", ")
-    var region = comma === -1 ? description : description.slice(comma + 2)
-    var kind = String(place.kind).replace(/_/g, " ")
-    if (place.elevation === null || place.elevation === undefined) return kind + " · " + region
-    return kind + " · " + Math.round(place.elevation) + " m · " + region
-  }
-
   function pickerChoices() {
     // The last area stays, so it shows no ×.
     var removable = areas.length > 1
@@ -277,7 +254,7 @@ BarWidget {
       if (matches[i] < areas.length)
         rows.push({ title: String(areas[matches[i]].name), detail: "", editable: true, removable: removable })
     for (var j = 0; j < found.length; j++)
-      rows.push({ title: String(found[j].name), detail: placeDetail(found[j]), editable: false, removable: false })
+      rows.push({ title: String(found[j].name), detail: found[j].detail ? String(found[j].detail) : "", editable: false, removable: false })
     return rows
   }
 
@@ -388,8 +365,6 @@ BarWidget {
     run(["order", "--", moving, String(to + 1)], shown)
   }
 
-  // The keys of Omarchy's lists: the arrows wrap round, Ctrl+arrows reorder and
-  // Delete removes, all on the row under the cursor.
   function pickerKey(event, text) {
     var last = choices.length - 1
     var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -406,7 +381,6 @@ BarWidget {
     return true
   }
 
-  // add, remove and order: after them the areas are read again.
   function run(args, name) {
     if (actionProcess.running) return
     actionProcess.after = name
@@ -414,13 +388,11 @@ BarWidget {
     actionProcess.running = true
   }
 
-  // The map starts where the area on show is, and saves a new area.
   function openMap() {
     if (areas.length === 0) return
     startMap([degrees(areas[selected].summit)], "")
   }
 
-  // The map with the marks of an area, to move them or rename it.
   function edit(index) {
     if (index >= matches.length) return
     var area = areas[matches[index]]
@@ -439,7 +411,6 @@ BarWidget {
     mapProcess.running = true
   }
 
-  // The map prints the name of the area it saved, or nothing when cancelled.
   function mapClosed(text) {
     var name = text.trim()
     if (name === "") return
@@ -448,7 +419,11 @@ BarWidget {
     reloadAreas(name)
   }
 
-  Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
+  moduleName: "io.github.alrubearb-sys.peakcast"
+  implicitWidth: button.implicitWidth
+  implicitHeight: button.implicitHeight
+
+  Commons.Translations { id: translations; directory: Qt.resolvedUrl("i18n") }
 
   NumberAnimation {
     id: dropAnimation
@@ -484,7 +459,7 @@ BarWidget {
 
   Timer {
     id: retryTimer
-    interval: 2500
+    interval: root.retryDelay
     onTriggered: root.fetch()
   }
 
@@ -504,7 +479,7 @@ BarWidget {
   }
 
   Timer {
-    interval: 21600000
+    interval: root.versionCheckInterval
     running: true
     repeat: true
     triggeredOnStart: true
@@ -536,12 +511,11 @@ BarWidget {
     stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") root.problem = text.trim() }
   }
 
-  // The icon of the Mac app (bar/ui/mountain-white.svg), in the colour of the bar.
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
-    tooltipText: root.popupOpen ? "" : strings.t("tooltip")
+    tooltipText: root.popupOpen ? "" : translations.t("tooltip")
     iconComponent: Component {
       Item {
         Shape {
@@ -577,638 +551,8 @@ BarWidget {
     }
   }
 
-  // Text from the engine is shown as plain text, never as markup.
-  component Label: Text {
-    textFormat: Text.PlainText
-    color: root.dimColor
-    font.family: Style.font.family
-    font.pixelSize: Style.font.bodySmall
-  }
-
-  component Value: Label {
-    color: root.textColor
-    font.pixelSize: Style.font.title
-  }
-
-  component Cell: Label {
-    color: root.textColor
-    font.pixelSize: Style.font.body
-  }
-
-  component Separator: Rectangle {
-    width: parent.width
-    height: 1
-    color: root.gridColor
-  }
-
-  // A small label above its value, as in the summit and base rows.
-  component Pair: Column {
-    property alias label: top.text
-    property alias value: bottom.text
-    property alias valueColor: bottom.color
-    Label { id: top }
-    Value { id: bottom }
-  }
-
-  // Omarchy's control chrome: a border of the text colour and a faint fill that
-  // grows on hover and press. Corners stay square, as in Omarchy's default.
-  component Control: Rectangle {
-    id: control
-    property bool lit: false
-    readonly property alias hovered: touch.containsMouse
-    signal clicked()
-    color: touch.pressed ? Style.pressedFill : touch.containsMouse || lit ? Style.hoverFill : Style.normalFill
-    border.width: Style.normalBorderWidth
-    border.color: touch.containsMouse || lit ? Style.hoverBorderColor : Style.normalBorderColor
-    MouseArea {
-      id: touch
-      anchors.fill: parent
-      hoverEnabled: true
-      cursorShape: Qt.PointingHandCursor
-      onClicked: control.clicked()
-    }
-  }
-
-  // A line drawing in its own small box, as the Mac panel draws its controls.
-  component Drawing: Shape {
-    property alias path: svg.path
-    property alias stroke: shapePath.strokeColor
-    property alias strokeWidth: shapePath.strokeWidth
-    preferredRendererType: Shape.CurveRenderer
-    ShapePath {
-      id: shapePath
-      fillColor: "transparent"
-      strokeColor: root.textColor
-      capStyle: ShapePath.RoundCap
-      joinStyle: ShapePath.RoundJoin
-      PathSvg { id: svg }
-    }
-  }
-
-  // One SVG path of the engine, drawn in its box and stretched to the chart.
-  component Trace: Shape {
-    property alias path: svg.path
-    property alias fill: shapePath.fillColor
-    property alias stroke: shapePath.strokeColor
-    property alias strokeWidth: shapePath.strokeWidth
-    visible: svg.path !== ""
-    width: root.panel ? root.panel.chart_width : 1
-    height: root.panel ? root.panel.chart_height : 1
-    preferredRendererType: Shape.CurveRenderer
-    transform: Scale {
-      xScale: root.panel ? parent.width / root.panel.chart_width : 1
-      yScale: root.panel ? parent.height / root.panel.chart_height : 1
-    }
-    ShapePath {
-      id: shapePath
-      fillColor: "transparent"
-      strokeColor: "transparent"
-      strokeWidth: 0
-      PathSvg { id: svg }
-    }
-  }
-
-  component Plot: Item {
-    id: plot
-    property var chart
-    property color tint
-    width: parent.width
-    height: Style.space(94)
-
-    Row {
-      spacing: Style.space(10)
-      Repeater {
-        model: plot.chart ? plot.chart.legend : []
-        Label { text: modelData.text; color: root.toneColor(modelData.tone, plot.tint) }
-      }
-    }
-
-    Repeater {
-      model: plot.chart ? plot.chart.ticks : []
-      Label {
-        x: 0
-        y: area.y + area.height * modelData.position - height / 2
-        width: root.axis - Style.space(6)
-        horizontalAlignment: Text.AlignRight
-        text: modelData.text
-        color: plot.chart.zero !== null && plot.chart.zero !== undefined && modelData.text === "0" ? root.textColor : root.dimColor
-      }
-    }
-
-    Rectangle {
-      id: area
-      x: root.axis
-      y: Style.space(20)
-      width: parent.width - root.axis
-      height: parent.height - Style.space(26)
-      color: root.chartColor
-
-      Repeater {
-        model: plot.chart ? plot.chart.ticks : []
-        Rectangle { y: area.height * modelData.position; width: area.width; height: 1; color: root.gridColor }
-      }
-      // Freezing, a thin red line so the side of 0 °C shows at a glance.
-      Rectangle {
-        visible: !!plot.chart && plot.chart.zero !== null && plot.chart.zero !== undefined
-        y: plot.chart && plot.chart.zero !== null && plot.chart.zero !== undefined ? area.height * plot.chart.zero : 0
-        width: area.width
-        height: 1
-        color: root.freezingColor
-      }
-      Repeater {
-        model: root.panel ? root.panel.marks : []
-        Rectangle {
-          x: area.width * modelData.position
-          width: 1
-          height: area.height
-          color: modelData.midnight ? root.dimColor : root.gridColor
-        }
-      }
-      Trace { path: plot.chart ? plot.chart.rain : ""; fill: root.rainColor }
-      Trace { path: plot.chart ? plot.chart.snow : ""; fill: root.snowColor }
-      Trace { path: plot.chart ? plot.chart.ice : ""; fill: root.iceColor }
-      Trace { path: plot.chart ? plot.chart.line : ""; stroke: plot.tint; strokeWidth: 2 }
-      Rectangle {
-        visible: root.hovered >= 0
-        x: area.width * (root.hovered + 0.5) / Math.max(1, root.hours)
-        width: 1
-        height: area.height
-        color: root.textColor
-      }
-    }
-  }
-
-  KeyboardPanel {
-    id: card
-    anchorItem: root
-    bar: root.bar
-    owner: root
-    open: root.popupOpen
-    focusTarget: card.loadedContent
-    padding: Style.spacing.panelPadding
-    // Like the Mac window: 440 wide with border and padding, 400 for the content.
-    contentWidth: card.fittedContentWidth(Style.space(440))
-    contentHeight: card.fittedContentHeight(card.loadedContentHeight)
-
-    // Built the first time the panel opens, so a closed panel holds no memory.
-    content: FocusScope {
-      id: body
-      implicitHeight: column.implicitHeight
-      focus: true
-
-      Keys.onPressed: function(event) {
-        if (event.key === Qt.Key_Escape) root.close()
-        else if (event.key === Qt.Key_Left) root.step(-1)
-        else if (event.key === Qt.Key_Right) root.step(1)
-        else return
-        event.accepted = true
-      }
-
-      Connections {
-        target: root
-        function onPickingChanged() {
-          if (root.picking) {
-            field.text = ""
-            Qt.callLater(field.forceActiveFocus)
-          } else {
-            body.forceActiveFocus()
-          }
-        }
-      }
-
-      Column {
-        id: column
-        width: parent.width
-        spacing: Style.spacing.rowGap
-
-        Label {
-          visible: root.missing
-          width: parent.width
-          wrapMode: Text.WordWrap
-          color: root.textColor
-          text: strings.t("missing") + "\n" + strings.t("install")
-        }
-
-        Label {
-          visible: !root.missing && root.areas.length === 0
-          width: parent.width
-          wrapMode: Text.WordWrap
-          color: root.textColor
-          text: strings.t("noAreas")
-        }
-
-        Row {
-          id: header
-          visible: root.areas.length > 0
-          width: parent.width
-          spacing: Style.spacing.rowGap
-
-          // Omarchy's dropdown trigger: control chrome, the current area and a chevron.
-          Control {
-            id: trigger
-            width: header.width - mapButton.width - daylightText.width - 2 * header.spacing
-            height: Style.spacing.controlHeight
-            lit: root.picking
-            onClicked: root.picking ? root.closePicker() : root.openPicker()
-
-            Label {
-              x: Style.spacing.controlPaddingX
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - x - chevron.width - 2 * Style.spacing.controlGap
-              elide: Text.ElideRight
-              text: root.areaName
-              color: Commons.Color.accent
-              font.pixelSize: Style.font.heading
-            }
-            Drawing {
-              id: chevron
-              anchors.right: parent.right
-              anchors.rightMargin: Style.spacing.controlGap
-              anchors.verticalCenter: parent.verticalCenter
-              width: 10
-              height: 6
-              strokeWidth: 1.5
-              path: "M 1 1 L 5 5 L 9 1"
-            }
-          }
-
-          // A square control with a folded map drawn on it, as on the Mac.
-          Control {
-            id: mapButton
-            width: Style.spacing.controlHeight
-            height: Style.spacing.controlHeight
-            onClicked: root.openMap()
-
-            Drawing {
-              anchors.centerIn: parent
-              width: 16
-              height: 14
-              strokeWidth: 1.25
-              path: "M 1 2 L 5.5 1 L 10.5 2 L 15 1 L 15 12 L 10.5 13 L 5.5 12 L 1 13 Z M 5.5 1 L 5.5 12 M 10.5 2 L 10.5 13"
-            }
-          }
-
-          Label {
-            id: daylightText
-            anchors.verticalCenter: parent.verticalCenter
-            text: root.panel ? root.panel.daylight : ""
-            color: root.sunColor
-            font.pixelSize: Style.font.body
-          }
-        }
-
-        Separator { }
-
-        Label {
-          visible: root.problem !== ""
-          width: parent.width
-          wrapMode: Text.WordWrap
-          color: root.iceColor
-          font.pixelSize: Style.font.body
-          text: root.problem
-        }
-
-        Label {
-          visible: root.areas.length > 0 && !root.panel && root.problem === ""
-          text: strings.t("loading")
-        }
-
-        Column {
-          visible: root.panel !== null
-          opacity: root.waiting ? 0.5 : 1
-          width: parent.width
-          spacing: Style.spacing.rowGap
-
-          Repeater {
-            model: root.panel ? root.panel.spots : []
-            Row {
-              Pair { width: Style.space(92); label: modelData.label; value: modelData.height }
-              Pair { width: Style.space(124); label: strings.t("sky"); value: modelData.sky }
-              Pair { width: Style.space(76); label: strings.t("temperature"); value: modelData.temperature; valueColor: root.temperatureColor }
-              Pair { label: strings.t("wind"); value: modelData.wind; valueColor: root.windColor }
-            }
-          }
-
-          Row {
-            Pair { width: Style.space(92); label: strings.t("snowLine"); value: root.panel ? root.panel.snow_line : "" }
-            Pair { width: Style.space(124); label: strings.t("freezingLevel"); value: root.panel ? root.panel.freezing_level : "" }
-            Pair { label: strings.t("snowDepth"); value: root.panel ? root.panel.snow_depth : "" }
-          }
-
-          Separator { }
-
-          Label {
-            text: root.hovered >= 0 && root.panel ? root.panel.readings[root.hovered] : strings.t("next")
-            color: root.hovered >= 0 ? root.textColor : root.dimColor
-          }
-
-          Item {
-            width: parent.width
-            height: Style.space(306)
-
-            Plot { y: 0; chart: root.panel ? root.panel.temperature : null; tint: root.temperatureColor }
-            Plot { y: Style.space(96); chart: root.panel ? root.panel.wind : null; tint: root.windColor }
-            Plot { y: Style.space(192); chart: root.panel ? root.panel.precipitation : null; tint: root.rainColor }
-
-            Repeater {
-              model: root.panel ? root.panel.marks : []
-              Label {
-                x: root.axis + (parent.width - root.axis) * modelData.position - width / 2
-                y: Style.space(288)
-                text: modelData.text
-                color: modelData.midnight ? root.textColor : root.dimColor
-              }
-            }
-
-            MouseArea {
-              x: root.axis
-              width: parent.width - root.axis
-              height: parent.height
-              hoverEnabled: true
-              // Setting the same hour again changes nothing, so nothing is redrawn.
-              onPositionChanged: function(mouse) {
-                root.hovered = Math.min(root.hours - 1, Math.max(0, Math.floor(mouse.x / width * root.hours)))
-              }
-              onExited: root.hovered = -1
-            }
-          }
-
-          Separator { }
-
-          Row {
-            Label { width: Style.space(44); text: strings.t("day") }
-            Label { width: Style.space(104); text: strings.t("sky") }
-            Label { width: Style.space(78); text: strings.t("dayTemperature") }
-            Label { width: Style.space(66); text: strings.t("windMax") }
-            Label { width: Style.space(56); text: strings.t("sun") }
-            Label { width: column.width - Style.space(348); horizontalAlignment: Text.AlignRight; text: strings.t("snow") }
-          }
-
-          Column {
-            spacing: Style.spacing.labelGap
-            Repeater {
-              model: root.panel ? root.panel.days : []
-              Row {
-                Cell { width: Style.space(44); text: modelData.name }
-                Cell { width: Style.space(104); text: modelData.sky; elide: Text.ElideRight }
-                Cell { width: Style.space(78); text: modelData.temperature; color: root.temperatureColor }
-                Cell { width: Style.space(66); text: modelData.wind; color: root.windColor }
-                Cell { width: Style.space(56); text: modelData.sun; color: root.sunColor }
-                Cell { width: column.width - Style.space(348); horizontalAlignment: Text.AlignRight; text: modelData.snow; color: root.snowColor }
-              }
-            }
-          }
-        }
-
-        Item {
-          visible: root.updatedAt > 0
-          width: parent.width
-          height: refresh.implicitHeight
-
-          Label {
-            anchors.verticalCenter: parent.verticalCenter
-            text: strings.t("updated").arg(new Date(root.updatedAt).toLocaleTimeString(Qt.locale(Commons.I18n.formatLocale), "hh:mm"))
-          }
-          Button {
-            id: refresh
-            anchors.right: parent.right
-            bordered: true
-            text: strings.t("refresh")
-            onClicked: root.refresh()
-          }
-        }
-
-        // The source of the data and, when there is one, the update link: one faint
-        // line at the very end, there when wanted and never in the way.
-        Item {
-          visible: root.panel !== null || root.newVersion !== ""
-          width: parent.width
-          height: credits.implicitHeight
-
-          Label {
-            id: credits
-            text: root.panel ? root.panel.credits : ""
-            font.pixelSize: Style.font.caption
-            opacity: 0.4
-          }
-          Label {
-            visible: root.newVersion !== ""
-            anchors.right: parent.right
-            text: strings.t("update").arg(root.newVersion)
-            font.pixelSize: Style.font.caption
-            opacity: updateArea.containsMouse ? 0.9 : 0.4
-
-            MouseArea {
-              id: updateArea
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: root.update()
-            }
-          }
-        }
-      }
-
-      // Above everything else; a click outside the list closes it.
-      MouseArea {
-        visible: root.picking
-        anchors.fill: parent
-        onClicked: root.closePicker()
-      }
-
-      // The list of the picker, under its trigger, as the Mac panel opens it.
-      Rectangle {
-        id: list
-        visible: root.picking
-        x: header.x + trigger.x
-        y: header.y + trigger.height + Style.spacing.labelGap
-        width: trigger.width
-        height: rows.implicitHeight + 2 * border.width
-        color: root.backgroundColor
-        border.width: Math.max(1, Style.space(2))
-        border.color: Commons.Color.accent
-
-        Column {
-          id: rows
-          x: list.border.width
-          y: list.border.width
-          width: list.width - 2 * list.border.width
-
-          Item {
-            id: searchRow
-            width: parent.width
-            height: Style.spacing.popupRowHeight + Style.spacing.controlPaddingX
-
-            Label {
-              visible: field.text === ""
-              x: Style.spacing.rowPaddingX
-              anchors.verticalCenter: parent.verticalCenter
-              text: strings.t("search")
-              font.pixelSize: Style.font.body
-            }
-            TextInput {
-              id: field
-              x: Style.spacing.rowPaddingX
-              width: parent.width - 2 * Style.spacing.rowPaddingX
-              anchors.verticalCenter: parent.verticalCenter
-              color: root.textColor
-              font.family: Style.font.family
-              font.pixelSize: Style.font.body
-              selectionColor: Style.selectionFill
-              clip: true
-              onTextEdited: {
-                root.cursor = -1
-                root.filter(text)
-              }
-              Keys.onPressed: function(event) { event.accepted = root.pickerKey(event, text) }
-            }
-          }
-
-          Rectangle { width: parent.width; height: 1; color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.10) }
-
-          Repeater {
-            model: root.choices
-            Rectangle {
-              id: row
-              required property var modelData
-              required property int index
-              width: rows.width
-              height: modelData.detail === "" ? Style.spacing.popupRowHeight : Style.spacing.popupRowHeight + Style.spacing.rowPaddingX
-              readonly property bool dragged: index === root.dragFrom
-              z: dragged ? 2 : 0
-              opacity: dragged ? 0.9 : 1
-              transform: Translate {
-                y: root.rowShift(row.index)
-                // The dragged row follows the pointer one-to-one; the others ease aside.
-                Behavior on y {
-                  enabled: !row.dragged
-                  NumberAnimation { duration: Style.duration(130); easing.type: Easing.OutCubic }
-                }
-              }
-              // The dragged row is solid, so the rows it passes do not show through it.
-              color: dragged ? Qt.tint(root.backgroundColor, Style.hoverFill)
-                : index === root.cursor ? Style.hoverFill
-                : modelData.editable && modelData.title === root.areaName ? Style.selectedFill
-                : "transparent"
-
-              MouseArea {
-                property real pressY: 0
-                property bool armed: false
-                anchors.fill: parent
-                hoverEnabled: true
-                preventStealing: true
-                cursorShape: row.dragged ? Qt.ClosedHandCursor
-                  : root.canDrag(row.index) ? Qt.OpenHandCursor : Qt.PointingHandCursor
-                // Measured in the column, which does not move; the row slides with the drag.
-                function pointerY(mouse) { return mapToItem(rows, 0, mouse.y).y }
-                // The mouse and the keyboard share one cursor, as in Omarchy.
-                onContainsMouseChanged: if (containsMouse && root.dragFrom < 0) root.cursor = row.index
-                onPressed: function(mouse) {
-                  pressY = pointerY(mouse)
-                  armed = false
-                }
-                onPositionChanged: function(mouse) {
-                  if (!pressed || !root.canDrag(row.index)) return
-                  var dy = pointerY(mouse) - pressY
-                  // A few pixels of slack, so a click is never a reorder.
-                  if (!armed) {
-                    if (Math.abs(dy) < Style.space(4)) return
-                    armed = true
-                    root.beginDrag(row.index, row.height)
-                  }
-                  root.moveDrag(dy)
-                }
-                onReleased: {
-                  if (armed) root.releaseDrag()
-                  else root.pick(row.index)
-                  armed = false
-                }
-                onCanceled: {
-                  armed = false
-                  root.commitDrag()
-                }
-              }
-
-              Column {
-                x: Style.spacing.rowPaddingX
-                width: parent.width - 2 * Style.spacing.rowPaddingX - Style.space(48)
-                anchors.verticalCenter: parent.verticalCenter
-                Cell { width: parent.width; elide: Text.ElideRight; text: row.modelData.title }
-                Label {
-                  visible: row.modelData.detail !== ""
-                  width: parent.width
-                  elide: Text.ElideRight
-                  text: row.modelData.detail
-                  font.pixelSize: Style.font.caption
-                }
-              }
-
-              // A pencil drawn like the ×, to its left: the map with this area's marks.
-              Item {
-                visible: row.modelData.editable && row.index === root.cursor
-                x: parent.width - Style.spacing.rowPaddingX - width - (row.modelData.removable ? Style.space(24) : 0)
-                anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(20)
-                height: Style.space(20)
-                Drawing {
-                  anchors.centerIn: parent
-                  width: 11
-                  height: 11
-                  strokeWidth: 1.2
-                  stroke: pencil.containsMouse ? root.textColor : root.dimColor
-                  path: "M 1 10 L 1.5 7.5 L 8 1 L 10 3 L 3.5 9.5 Z M 6.5 2.5 L 8.5 4.5"
-                }
-                MouseArea {
-                  id: pencil
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.edit(row.index)
-                }
-              }
-
-              // The × of Omarchy's world clock, without its circle, only on the row
-              // under the cursor. The 20 px box is there to be easy to hit.
-              Item {
-                visible: row.modelData.removable && row.index === root.cursor
-                x: parent.width - Style.spacing.rowPaddingX - width
-                anchors.verticalCenter: parent.verticalCenter
-                width: Style.space(20)
-                height: Style.space(20)
-                Label {
-                  anchors.centerIn: parent
-                  text: "×"
-                  color: cross.containsMouse ? root.textColor : root.dimColor
-                  font.pixelSize: Style.font.title
-                }
-                MouseArea {
-                  id: cross
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.remove(row.index)
-                }
-              }
-            }
-          }
-
-          Item {
-            visible: root.searching || root.choices.length === 0
-            width: parent.width
-            height: Style.spacing.popupRowHeight
-            Label {
-              x: Style.spacing.rowPaddingX
-              width: parent.width - 2 * Style.spacing.rowPaddingX
-              anchors.verticalCenter: parent.verticalCenter
-              elide: Text.ElideRight
-              font.pixelSize: Style.font.body
-              text: root.searching ? strings.t("searching")
-                : field.text === "" ? strings.t("noAreasShort")
-                : strings.t("noMatches")
-            }
-          }
-        }
-      }
-    }
+  ForecastPanel {
+    widget: root
+    strings: translations
   }
 }
