@@ -44,6 +44,7 @@ BarWidget {
   property var found: []
   property string searched: ""
   property bool searching: false
+  property string asked: ""
   property int cursor: -1
   // A saved area being dragged in the picker, as Omarchy's world clock drags its
   // cities: the row follows the pointer and the others step aside.
@@ -262,12 +263,16 @@ BarWidget {
     if (searching || text.trim() === "") return
     searching = true
     searched = text
+    asked = text
     searchProcess.command = engine(["search", "--json", "--", text])
     searchProcess.running = true
   }
 
   function readSearch(text) {
     searching = false
+    // What was typed changed while it searched: these places answer another text,
+    // and picking one would add the wrong place.
+    if (searched !== asked) return
     try {
       var places = JSON.parse(text).places
       found = Array.isArray(places) ? places.slice(0, 10) : []
