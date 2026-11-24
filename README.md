@@ -7,6 +7,8 @@ line, freezing level and charts for the next hours.
 The plugin shows what the [Peakcast](https://github.com/alrubearb-sys/peakcast) engine prints, so
 the engine has to be installed first.
 
+![The map with the summit and the base of K2, and the panel of Bödele](preview.png)
+
 ## Install
 
 1. Install the engine. Until the AUR package is ready, take it from the latest
@@ -15,9 +17,9 @@ the engine has to be installed first.
 
    ```
    cd /tmp
-   curl -LO https://github.com/alrubearb-sys/peakcast/releases/download/v0.3.0/peakcast-0.3.0-x86_64-linux.tar.gz
-   tar xzf peakcast-0.3.0-x86_64-linux.tar.gz
-   install -Dm755 peakcast-0.3.0-x86_64-linux/peakcast peakcast-0.3.0-x86_64-linux/peakcast-map -t ~/.local/bin/
+   curl -LO https://github.com/alrubearb-sys/peakcast/releases/download/v0.4.4/peakcast-0.4.4-x86_64-linux.tar.gz
+   tar xzf peakcast-0.4.4-x86_64-linux.tar.gz
+   install -Dm755 peakcast-0.4.4-x86_64-linux/peakcast peakcast-0.4.4-x86_64-linux/peakcast-map -t ~/.local/bin/
    ```
 
 2. Add an area, for example `peakcast add Säntis`.
@@ -35,7 +37,7 @@ the engine has to be installed first.
    o.window("^peakcast-map$", { tag = "+floating-window" })
    ```
 
-The plugin needs Peakcast 0.3.0 or newer. To have it next to Omarchy's weather, drag it in the bar
+The plugin needs Peakcast 0.4.4 or newer. To have it next to Omarchy's weather, drag it in the bar
 or run `omarchy bar move io.github.alrubearb-sys.peakcast --section center`.
 
 ## Use
@@ -48,6 +50,13 @@ or run `omarchy bar move io.github.alrubearb-sys.peakcast --section center`.
 - When a new version is out, a faint link at the foot of the panel updates the engine, the map and
   the plugin in a terminal, as Omarchy updates itself.
 - `omarchy-shell io.github.alrubearb-sys.peakcast refresh` asks for the forecast again.
+
+The panel for K2, and the map where its summit and base were picked:
+
+<p>
+  <img src="screenshots/panel-k2.png" alt="The panel for K2: -38 °C at the summit and 241 cm of snow" width="360">
+  <img src="screenshots/map-k2.png" alt="The map with the summit and the base of K2" width="560">
+</p>
 
 ## Remove
 
