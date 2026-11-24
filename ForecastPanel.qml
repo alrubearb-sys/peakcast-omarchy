@@ -343,19 +343,32 @@ Item {
             font.pixelSize: Style.font.caption
             opacity: 0.4
           }
-          Label {
-            visible: widget.newVersion !== ""
+          Row {
             anchors.right: parent.right
-            text: strings.t("update").arg(widget.newVersion)
-            font.pixelSize: Style.font.caption
-            opacity: updateArea.containsMouse ? 0.9 : 0.4
+            spacing: Style.space(8)
 
-            MouseArea {
-              id: updateArea
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: widget.update()
+            // Of the engine, so that it shows whether this is the newest release.
+            Label {
+              visible: text !== ""
+              text: widget.panel && widget.panel.version
+                ? String(widget.panel.version) + (widget.newVersion !== "" ? " ·" : "")
+                : ""
+              font.pixelSize: Style.font.caption
+              opacity: 0.4
+            }
+            Label {
+              visible: widget.newVersion !== ""
+              text: strings.t("update").arg(widget.newVersion)
+              font.pixelSize: Style.font.caption
+              opacity: updateArea.containsMouse ? 0.9 : 0.4
+
+              MouseArea {
+                id: updateArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: widget.update()
+              }
             }
           }
         }
