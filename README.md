@@ -17,9 +17,9 @@ the engine has to be installed first.
 
    ```
    cd /tmp
-   curl -LO https://github.com/alrubearb-sys/peakcast/releases/download/v0.4.4/peakcast-0.4.4-x86_64-linux.tar.gz
-   tar xzf peakcast-0.4.4-x86_64-linux.tar.gz
-   install -Dm755 peakcast-0.4.4-x86_64-linux/peakcast peakcast-0.4.4-x86_64-linux/peakcast-map -t ~/.local/bin/
+   curl -LO https://github.com/alrubearb-sys/peakcast/releases/download/v0.4.5/peakcast-0.4.5-x86_64-linux.tar.gz
+   tar xzf peakcast-0.4.5-x86_64-linux.tar.gz
+   install -Dm755 peakcast-0.4.5-x86_64-linux/peakcast peakcast-0.4.5-x86_64-linux/peakcast-map -t ~/.local/bin/
    ```
 
 2. Add an area, for example `peakcast add Säntis`.
@@ -37,7 +37,7 @@ the engine has to be installed first.
    o.window("^peakcast-map$", { tag = "+floating-window" })
    ```
 
-The plugin needs Peakcast 0.4.4 or newer. To have it next to Omarchy's weather, drag it in the bar
+The plugin needs Peakcast 0.4.5 or newer. To have it next to Omarchy's weather, drag it in the bar
 or run `omarchy bar move io.github.alrubearb-sys.peakcast --section center`.
 
 ## Use
@@ -49,7 +49,12 @@ or run `omarchy bar move io.github.alrubearb-sys.peakcast --section center`.
 - The map button opens the map: left click sets the summit, right click the base.
 - When a new version is out, a faint link at the foot of the panel updates the engine, the map and
   the plugin in a terminal, as Omarchy updates itself.
+- The "temp in bar" switch at the foot of the panel, or a right click on the mountain, shows the
+  temperature at the top of the first area next to the icon, as Omarchy shows the battery's
+  percentage. It is off at first.
 - `omarchy-shell io.github.alrubearb-sys.peakcast refresh` asks for the forecast again.
+- `omarchy-shell io.github.alrubearb-sys.peakcast toggleTemperature` switches the temperature on
+  or off.
 
 The panel for K2, and the map where its summit and base were picked:
 

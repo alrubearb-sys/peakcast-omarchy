@@ -15,6 +15,7 @@
   "updated": "Updated %1",
   "update": "Update to %1",
   "refresh": "refresh",
+  "temperatureInBar": "temp in bar",
   "loading": "Loading...",
   "missing": "The peakcast engine is not installed.",
   "install": "See github.com/alrubearb-sys/peakcast to install it.",

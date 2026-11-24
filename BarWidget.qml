@@ -35,6 +35,14 @@ BarWidget {
   property bool popupOpen: false
   property real updatedAt: 0
   property string newVersion: ""
+  // The temperature next to the icon, off by default as Omarchy's battery
+  // percentage, and kept in shell.json the same way.
+  readonly property bool showTemperature: setting("showTemperature", false) === true
+  property string barText: ""
+  // The panel is centred on this point, which stays where the panel opened: the
+  // temperature widens the widget, and the panel would move with it.
+  readonly property Item panelAnchor: anchorPoint
+  readonly property int barInterval: hourMilliseconds / 2
   property int hovered: -1
   property var palette: ({})
 
@@ -82,6 +90,7 @@ BarWidget {
   readonly property bool opened: popupOpen
 
   function open() {
+    anchorPoint.center = anchorPoint.widgetX + width / 2
     popupOpen = true
     // The theme may have changed since the last time.
     themeFile.reload()
@@ -135,6 +144,25 @@ BarWidget {
     Commons.Util.execArgv(["omarchy-launch-floating-terminal-with-presentation", script])
   }
 
+  function toggleTemperature() {
+    root.settings = Object.assign({}, root.settings, { showTemperature: !root.showTemperature })
+    if (root.bar && root.bar.shell) root.bar.shell.updateEntryInline(root.moduleName, root.settings)
+  }
+
+  // Of the first area, the default one, whichever is on show in the panel.
+  function fetchBar() {
+    if (showTemperature && !barProcess.running) barProcess.running = true
+  }
+
+  function readBar(text) {
+    try {
+      var read = JSON.parse(text)
+      barText = read.bar ? String(read.bar) : ""
+    } catch (error) {
+      barText = ""
+    }
+  }
+
   function loadAreas() {
     areasProcess.running = true
   }
@@ -142,6 +170,8 @@ BarWidget {
   function reloadAreas(name) {
     wanted = name
     loadAreas()
+    // The first area may be another one now, or have moved.
+    fetchBar()
   }
 
   function fetch() {
@@ -220,6 +250,7 @@ BarWidget {
       problem = ""
       outdated = false
       updatedAt = Date.now()
+      if (selected === 0 && panel.bar) barText = String(panel.bar)
     } catch (error) {
       problem = "cannot read the answer of peakcast"
     }
@@ -473,6 +504,8 @@ BarWidget {
   ShellIpc {
     target: root.moduleName
     function refresh(): void { root.broadcast("refresh") }
+    // As Omarchy's battery has togglePercentage.
+    function toggleTemperature(): void { root.toggleTemperature() }
   }
 
   // Every 6 hours, as Omarchy looks for its own updates. Without network the
@@ -489,6 +522,21 @@ BarWidget {
     repeat: true
     triggeredOnStart: true
     onTriggered: root.checkVersion()
+  }
+
+  Process {
+    id: barProcess
+    command: root.engine(["panel"])
+    stdout: StdioCollector { onStreamFinished: if (text !== "") root.readBar(text) }
+  }
+
+  // Half-hourly is enough: the forecast is by the hour.
+  Timer {
+    interval: root.barInterval
+    running: root.showTemperature
+    repeat: true
+    triggeredOnStart: true
+    onTriggered: root.fetchBar()
   }
 
   Process {
@@ -516,11 +564,33 @@ BarWidget {
     stderr: StdioCollector { onStreamFinished: if (text.trim() !== "") root.problem = text.trim() }
   }
 
+  TransformWatcher {
+    id: widgetWatcher
+    a: root.QsWindow.window ? root.QsWindow.window.contentItem : null
+    b: root
+  }
+
+  Item {
+    id: anchorPoint
+    // Where the panel opened, in the bar's window.
+    property real center: 0
+    readonly property real widgetX: {
+      widgetWatcher.transform
+      var window = root.QsWindow.window
+      return window ? root.mapToItem(window.contentItem, 0, 0).x : 0
+    }
+    width: 1
+    height: root.height
+    x: root.popupOpen ? center - widgetX - width / 2 : (root.width - width) / 2
+  }
+
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
     tooltipText: root.popupOpen ? "" : translations.t("tooltip")
+    labelText: root.showTemperature && !vertical ? root.barText : ""
+    slotSize: Style.bar.iconSlot * (labelText !== "" ? 2 : 1)
     iconComponent: Component {
       Item {
         Shape {
@@ -549,6 +619,11 @@ BarWidget {
     onPressed: function(mouseButton) {
       if (mouseButton === Qt.MiddleButton) {
         root.loadAreas()
+        return
+      }
+      // As the battery's percentage in Omarchy.
+      if (mouseButton === Qt.RightButton) {
+        root.toggleTemperature()
         return
       }
       if (root.popupOpen) root.close()

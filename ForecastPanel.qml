@@ -77,7 +77,7 @@ Item {
 
   KeyboardPanel {
     id: card
-    anchorItem: widget
+    anchorItem: widget.panelAnchor
     bar: widget.bar
     owner: widget
     open: widget.popupOpen
@@ -320,6 +320,23 @@ Item {
           Label {
             anchors.verticalCenter: parent.verticalCenter
             text: strings.t("updated").arg(new Date(widget.updatedAt).toLocaleTimeString(Qt.locale(Commons.I18n.formatLocale), "hh:mm"))
+          }
+          // Omarchy's own switch, as on the header of its Bluetooth panel.
+          Row {
+            anchors.right: refresh.left
+            anchors.rightMargin: Style.space(12)
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: Style.space(8)
+            Label {
+              anchors.verticalCenter: parent.verticalCenter
+              text: strings.t("temperatureInBar")
+            }
+            ToggleSwitch {
+              anchors.verticalCenter: parent.verticalCenter
+              checked: widget.showTemperature
+              foreground: widget.textColor
+              onToggled: widget.toggleTemperature()
+            }
           }
           Button {
             id: refresh
