@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.alrubearb-sys.peakcast",
   "name": "Peakcast",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "author": "alrubearb-sys",
   "description": "Mountain weather for the places you go: summit and base, wind at the summit, snow line and freezing level",
   "license": "MIT",
